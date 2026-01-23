@@ -150,7 +150,7 @@ bool PinManager::allocatePin(byte gpio, bool output, PinOwner tag)
   // HW I2C & SPI pins have to be allocated using allocateMultiplePins variant since there is always SCL/SDA pair
   // DMX_INPUT pins have to be allocated using allocateMultiplePins variant since there is always RX/TX/EN triple
   if (!isPinOk(gpio, output) || (gpio >= WLED_NUM_PINS) || tag==PinOwner::HW_I2C || tag==PinOwner::HW_SPI
-      || tag==PinOwner::DMX_INPUT) {
+      || tag==PinOwner::DMX_INPUT || tag==PinOwner::CLNP) {
     #ifdef WLED_DEBUG
     if (gpio < 255) {  // 255 (-1) is the "not defined GPIO"
       if (!isPinOk(gpio, output)) {

@@ -551,6 +551,10 @@ void WLED::setup()
   dmxInput.init(dmxInputReceivePin, dmxInputTransmitPin, dmxInputEnablePin, dmxInputPort);
 #endif
 
+#ifdef WLED_ENABLE_CLNP
+  clnpInput.init(clnpInputReceivePin, clnpInputTransmitPin, clnpInputEnablePin, clnpInputPort, clnpInputDefaultBaud);
+#endif
+
 #ifdef WLED_ENABLE_ADALIGHT
   if (serialCanRX && Serial.available() > 0 && Serial.peek() == 'I') handleImprovPacket();
 #endif
@@ -706,7 +710,7 @@ void WLED::initConnection()
 
   if (WLED_WIFI_CONFIGURED) {
     showWelcomePage = false;
-    
+
     DEBUG_PRINTF_P(PSTR("Connecting to %s...\n"), multiWiFi[selectedWiFi].clientSSID);
 
     // convert the "serverDescription" into a valid DNS hostname (alphanumeric)

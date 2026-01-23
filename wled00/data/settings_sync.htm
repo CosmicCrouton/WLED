@@ -50,6 +50,8 @@
 	}
 	function hideDMXInput(){gId("dmxInput").style.display="none";}
 	function hideNoDMXInput(){gId("dmxInputOff").style.display="none";}
+	function hideCLNPInput(){gId("clnpInput").style.display="none";}
+	function hideNoCLNPInput(){gId("clnpInputOff").style.display="none";}
 	</script>
 </head>
 <body>
@@ -166,13 +168,34 @@ Realtime LED offset: <input name="WO" type="number" min="-255" max="255" require
 	DMX TX: <input name="IDMT" type="number" min="-1" max="99">DI<br/>
 	DMX Enable: <input name="IDME" type="number" min="-1" max="99">RE+DE<br/>
 	DMX Port: <input name="IDMP" type="number" min="1" max="2"><br/>
-</div> 
+</div>
 <div id="dmxInputOff">
 	<br><em style="color:darkorange">This firmware build does not include DMX Input support. <br></em>
-</div> 
+</div>
 <div id="dmxOnOff2">
   <br><em style="color:darkorange">This firmware build does not include DMX output support. <br></em>
-</div> 
+</div>
+<hr class="sml">
+<h3>Cabin Lighting Network Protocol (CLNP)</h3>
+Default baud:
+<select name=CLNPDB>
+<option value=9600>9600</option>
+<option value=19200>19200</option>
+<option value=38400>38400</option>
+<option value=57600>57600</option>
+<option value=115200>115200</option>
+</select><br>
+<div id="clnpInput">
+	<h4>RS485 Pins</h4>
+	CLNP RX: <input name="CLNPR" type="number" min="-1" max="99">RO<br/>
+	CLNP TX: <input name="CLNPT" type="number" min="-1" max="99">DI<br/>
+	CLNP Enable: <input name="CLNPE" type="number" min="-1" max="99">RE+DE<br/>
+	CLNP Port: <input name="CLNPP" type="number" min="1" max="2"><br/>
+</div>
+<br>
+<div id="clnpInputOff">
+	<br><em style="color:darkorange">This firmware build does not include CLNP support. <br></em>
+</div>
 <hr class="sml">
 <h3>Alexa Voice Assistant</h3>
 <div id="NoAlexa" class="hide">

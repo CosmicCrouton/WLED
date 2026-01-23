@@ -303,7 +303,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
             DEBUG_PRINTF_P(PSTR("PIN ALLOC error: GPIO%d for touch button #%d is not an touch pin!\n"), buttons[i].pin, i);
             PinManager::deallocatePin(buttons[i].pin, PinOwner::Button);
             buttons[i].type = BTN_TYPE_NONE;
-          }          
+          }
           #ifdef SOC_TOUCH_VERSION_2 // ESP32 S2 and S3 have a fucntion to check touch state but need to attach an interrupt to do so
           else touchAttachInterrupt(buttons[i].pin, touchButtonISR, touchThreshold << 4); // threshold on Touch V2 is much higher (1500 is a value given by Espressif example, I measured changes of over 5000)
           #endif
@@ -445,6 +445,15 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     dmxInputEnablePin = request->arg(F("IDME")).toInt();
     dmxInputPort = request->arg(F("IDMP")).toInt();
     if(dmxInputPort <= 0 || dmxInputPort > 2) dmxInputPort = 2;
+#endif
+
+#ifdef WLED_ENABLE_CLNP
+    clnpInputDefaultBaud = request->arg(F("CLNPDB")).toInt();
+    clnpInputTransmitPin = request->arg(F("CLNPT")).toInt();
+    clnpInputReceivePin = request->arg(F("CLNPR")).toInt();
+    clnpInputEnablePin = request->arg(F("CLNPE")).toInt();
+    clnpInputPort = request->arg(F("CLNPP")).toInt();
+    if(clnpInputPort <= 0 || clnpInputPort > 2) clnpInputPort = 2;
 #endif
 
     #ifndef WLED_DISABLE_ALEXA
@@ -952,7 +961,7 @@ bool handleSet(AsyncWebServerRequest *request, const String& req, bool apply)
 
   pos = req.indexOf(F("NP")); //advances to next preset in a playlist
   if (pos > 0) doAdvancePlaylist = true;
-  
+
   //set brightness
   updateVal(req.c_str(), "&A=", bri);
 

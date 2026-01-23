@@ -413,7 +413,7 @@ void getSettingsJS(byte subPage, Print& settingsScript)
 #ifndef WLED_DISABLE_INFRARED
     printSetFormValue(settingsScript,PSTR("IR"),irPin);
     printSetFormValue(settingsScript,PSTR("IT"),irEnabled);
-#endif    
+#endif
     printSetFormCheckbox(settingsScript,PSTR("MSO"),!irApplyToAllSelected);
   }
 
@@ -478,6 +478,18 @@ void getSettingsJS(byte subPage, Print& settingsScript)
     printSetFormCheckbox(settingsScript,PSTR("FB"),arlsForceMaxBri);
     printSetFormCheckbox(settingsScript,PSTR("RG"),arlsDisableGammaCorrection);
     printSetFormValue(settingsScript,PSTR("WO"),arlsOffset);
+
+#ifndef WLED_ENABLE_CLNP
+    settingsScript.print(SET_F("hideCLNPInput();"));  // hide "clnp input" settings
+#else
+    settingsScript.print(SET_F("hideNoCLNPInput();"));  //hide "not compiled in" message
+    printSetFormValue(settingsScript,PSTR("CLNPDB"),clnpInputDefaultBaud);
+    printSetFormValue(settingsScript,SET_F("CLNPT"),clnpInputTransmitPin);
+    printSetFormValue(settingsScript,SET_F("CLNPR"),clnpInputReceivePin);
+    printSetFormValue(settingsScript,SET_F("CLNPE"),clnpInputEnablePin);
+    printSetFormValue(settingsScript,SET_F("CLNPP"),clnpInputPort);
+#endif
+
     #ifndef WLED_DISABLE_ALEXA
     printSetFormCheckbox(settingsScript,PSTR("AL"),alexaEnabled);
     printSetFormValue(settingsScript,PSTR("AI"),alexaInvocationName);

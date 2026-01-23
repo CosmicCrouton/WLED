@@ -150,6 +150,10 @@
   #include "dmx_input.h"
 #endif
 
+#ifdef WLED_ENABLE_CLNP
+  #include "clnp_input.h"
+#endif
+
 #include "src/dependencies/e131/ESPAsyncE131.h"
 #ifndef WLED_DISABLE_MQTT
 #include <AsyncMqttClient.h>
@@ -487,6 +491,15 @@ WLED_GLOBAL byte e131LastSequenceNumber[E131_MAX_UNIVERSE_COUNT]; // to detect p
 WLED_GLOBAL bool e131Multicast _INIT(false);                      // multicast or unicast
 WLED_GLOBAL bool e131SkipOutOfSequence _INIT(false);              // freeze instead of flickering
 WLED_GLOBAL uint16_t pollReplyCount _INIT(0);                     // count number of replies for ArtPoll node report
+
+#ifdef WLED_ENABLE_CLNP
+  WLED_GLOBAL int clnpInputDefaultBaud _INIT(CLNP_DEFAULT_BAUD);
+  WLED_GLOBAL int clnpInputTransmitPin _INIT(CLNP_TX_PIN);
+  WLED_GLOBAL int clnpInputReceivePin _INIT(CLNP_RX_PIN);
+  WLED_GLOBAL int clnpInputEnablePin _INIT(CLNP_EN_PIN);
+  WLED_GLOBAL int clnpInputPort _INIT(CLNP_UART_NUM);
+  WLED_GLOBAL CLNPInput clnpInput;
+#endif
 
 // mqtt
 WLED_GLOBAL unsigned long lastMqttReconnectAttempt _INIT(0);  // used for other periodic tasks too

@@ -372,7 +372,7 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
             PinManager::deallocatePin(pin, PinOwner::Button);
             pin = -1;
             continue;
-          }          
+          }
           //if touch pin, enable the touch interrupt on ESP32 S2 & S3
           #ifdef SOC_TOUCH_VERSION_2    // ESP32 S2 and S3 have a function to check touch state but need to attach an interrupt to do so
           else touchAttachInterrupt(pin, touchButtonISR, touchThreshold << 4); // threshold on Touch V2 is much higher (1500 is a value given by Espressif example, I measured changes of over 5000)
@@ -607,6 +607,16 @@ bool deserializeConfig(JsonObject doc, bool fromFS) {
   CJSON(arlsForceMaxBri, if_live[F("maxbri")]);
   CJSON(arlsDisableGammaCorrection, if_live[F("no-gc")]); // false
   CJSON(arlsOffset, if_live[F("offset")]); // 0
+
+  JsonObject if_live_clnp = if_live["clnp"];
+
+  #ifdef WLED_ENABLE_CLNP
+    CJSON(clnpInputDefaultBaud, if_live_clnp[F("defaultBaud")]);
+    CJSON(clnpInputTransmitPin, if_live_clnp[F("inputRxPin")]);
+    CJSON(clnpInputReceivePin, if_live_clnp[F("inputTxPin")]);
+    CJSON(clnpInputEnablePin, if_live_clnp[F("inputEnablePin")]);
+    CJSON(clnpInputPort, if_live_clnp[F("clnpInputPort")]);
+  #endif
 
 #ifndef WLED_DISABLE_ALEXA
   CJSON(alexaEnabled, interfaces["va"][F("alexa")]); // false
@@ -1129,6 +1139,15 @@ void serializeConfig(JsonObject root) {
   if_live[F("maxbri")] = arlsForceMaxBri;
   if_live[F("no-gc")] = arlsDisableGammaCorrection;
   if_live[F("offset")] = arlsOffset;
+
+  JsonObject if_live_clnp = if_live.createNestedObject("clnp");
+  #ifdef WLED_ENABLE_CLNP
+    if_live_clnp[F("defaultBaud")] = clnpInputDefaultBaud;
+    if_live_clnp[F("inputRxPin")] = clnpInputTransmitPin;
+    if_live_clnp[F("inputTxPin")] = clnpInputReceivePin;
+    if_live_clnp[F("inputEnablePin")] = clnpInputEnablePin;
+    if_live_clnp[F("dmxInputPort")] = clnpInputPort;
+  #endif
 
 #ifndef WLED_DISABLE_ALEXA
   JsonObject if_va = interfaces.createNestedObject("va");
