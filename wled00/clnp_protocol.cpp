@@ -33,8 +33,8 @@ void clnp_protocol::setup()
         devices[i].nvs_namespace = "esp_clnp?" + std::to_string(i);
         ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_open(devices[i].nvs_namespace.c_str(), NVS_READONLY, &nvs));
 
-        ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u32(nvs, "address", &devices[i].group_membership_flags));
-        ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(nvs, "group", &devices[i].address));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u32(nvs, "group", &devices[i].group_membership_flags));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(nvs, "address", &devices[i].address));
         ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(nvs, "terminated", &devices[i].termination_enabled));
 
         DEBUG_PRINTF("group: %04x, addr: %02x, term: %01x\n", devices[i].group_membership_flags, devices[i].address, devices[i].termination_enabled);
@@ -457,9 +457,9 @@ bool clnp_device::process_message(CLNPDestinationType destination_type, uint8_t 
             ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_open(this->nvs_namespace.c_str(), NVS_READWRITE, &nvs));
 
             if (param_addr == CLNPParamAddress::GROUP_MASK) {
-                this->group_membership_flags = ((uint32_t)data[3] << 24) ||
-                                               ((uint32_t)data[4] << 16) ||
-                                               ((uint32_t)data[5] << 8)  ||
+                this->group_membership_flags = ((uint32_t)data[3] << 24) |
+                                               ((uint32_t)data[4] << 16) |
+                                               ((uint32_t)data[5] << 8)  |
                                                 (uint32_t)data[6];
 
                 ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_set_u32(nvs, "group", this->group_membership_flags));
@@ -552,7 +552,7 @@ void clnp_device::send_response(CLNPCmds cmd, uint8_t dest_addr, CLNPErrorCode e
 
     messageLayer[1] = static_cast<uint8_t>(cmd);
 
-    if (error_code != CLNPErrorCode::NONE) {
+    if (error_code == CLNPErrorCode::NONE) {
         messageLayerSize = 2;
     } else {
         messageLayerSize = 4;

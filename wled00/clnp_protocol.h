@@ -116,12 +116,12 @@ enum class CLNPParameterErrorCodes : uint8_t {
 
 
 enum class CLNPParamAddress : uint8_t {
-    GROUP_MASK = 0b11000000,
-    CHAIN_ADDRESS = 0b11110000,
-    COMM_RATE = 0b11110100,
-    DATA_BITS = 0b11110101,
-    TERM_ENABLE = 0b11110110,
-    LOG_LEVEL = 0b11110111,
+    GROUP_MASK      = 0b11000000, //0xC0
+    CHAIN_ADDRESS   = 0b11110000, //0xF0
+    COMM_RATE       = 0b11110100, //0xF4
+    DATA_BITS       = 0b11110101, //0xF5
+    TERM_ENABLE     = 0b11110110, //0xF6
+    LOG_LEVEL       = 0b11110111, //0xF7
 };
 
 class clnp_device {
