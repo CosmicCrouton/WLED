@@ -164,7 +164,7 @@ void CLNPInput::checkAndUpdateConfig()
   //}
 }
 
-esp_err_t CLNPInput::setup_uart(clnp_port_t clnp_num, uint32_t baud_rate, QueueHandle_t *uart_queue) {
+esp_err_t CLNPInput::setup_uart(clnp_port_t clnp_num, int baud_rate, QueueHandle_t *uart_queue) {
 
   ESP_RETURN_ON_FALSE(clnp_num < CLNP_NUM_MAX, false, "CLNP", "clnp_num error");
 

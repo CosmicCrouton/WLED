@@ -74,7 +74,7 @@ uint32_t IRAM_ATTR color_fade(uint32_t c1, uint8_t amount, bool video) {
     uint8_t maxc = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b); // determine dominant channel for hue preservation
     addRemains  = r && (r<<5) > maxc ? 0x00010000 : 0; // note: setting color preservation threshold too high results in flickering and
     addRemains |= g && (g<<5) > maxc ? 0x00000100 : 0; // jumping colors in low brightness gradients. Multiplying the color preserves
-    addRemains |= b && (b<<5) > maxc ? 0x00000001 : 0; // better accuracy than dividing the maxc. Shifting by 5 is a good compromise 
+    addRemains |= b && (b<<5) > maxc ? 0x00000001 : 0; // better accuracy than dividing the maxc. Shifting by 5 is a good compromise
     addRemains |= w ? 0x01000000 : 0;                  // i.e. remove color channel if <13% of max
   }
   const uint32_t TWO_CHANNEL_MASK = 0x00FF00FF;
@@ -401,6 +401,39 @@ void colorCTtoRGB(uint16_t mired, byte* rgb) //white spectrum to rgb, bins
 }
 
 #ifndef WLED_DISABLE_HUESYNC
+
+//Converts CIE 1931 xyY to sRGB
+void colorXYtosRGB(float x, float y, byte* rgb)
+{
+  float X, Y = 1.0f, Z;
+
+  // Convert xyY to XYZ
+  if (y == 0.0f)
+  {
+    X = 0.0f; Y = 0.0f; Z = 0.0f;
+  }
+  else
+  {
+    X = (x / y) * Y;
+    Z = ((1.0f - x - y) / y) * Y;
+  }
+
+  //XYZ to sRGB conversion using the RGB D65 conversion matrix
+  float r_linear = X *  3.2406255f + Y * -1.537208f  + Z * -0.4986286f;
+  float g_linear = X * -0.9689307f + Y *  1.8757561f + Z *  0.0415175f;
+  float b_linear = X *  0.0557101f + Y * -0.2040211f + Z *  1.0569959f;
+
+  // Apply gamma correction
+  float r_corrected = r_linear <= 0.0031308f ? 12.92f * r_linear : (1.0f + 0.055f) * powf(r_linear, (1.0f / 2.4f)) - 0.055f;
+  float g_corrected = g_linear <= 0.0031308f ? 12.92f * g_linear : (1.0f + 0.055f) * powf(g_linear, (1.0f / 2.4f)) - 0.055f;
+  float b_corrected = b_linear <= 0.0031308f ? 12.92f * b_linear : (1.0f + 0.055f) * powf(b_linear, (1.0f / 2.4f)) - 0.055f;
+
+  //clamp to 0.0f - 1.0f and convert to 0-255 range
+  rgb[0] = std::max(0.0f, std::min(1.0f, r_corrected)) * 255.0f;
+  rgb[1] = std::max(0.0f, std::min(1.0f, g_corrected)) * 255.0f;
+  rgb[2] = std::max(0.0f, std::min(1.0f, b_corrected)) * 255.0f;
+}
+
 void colorXYtoRGB(float x, float y, byte* rgb) //coordinates to rgb (https://www.developers.meethue.com/documentation/color-conversions-rgb-xy)
 {
   float z = 1.0f - x - y;

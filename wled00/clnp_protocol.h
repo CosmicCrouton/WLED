@@ -37,6 +37,7 @@ enum class CLNPCmds : uint8_t {
     GET_LOGGED_EVENTS   = 0x05,
     CLEAR_LOGGED_EVENTS = 0x06,
 
+    SET_CCT_INT_FADE            = 0x11,  //Undocumented in the CLNP spec but used by the CLNP config tool...
     COMMON_LIGHT_CONTROL        = 0x1E,
 
     SETUP_EUMERATION                = 0xE0,
@@ -116,6 +117,8 @@ enum class CLNPParameterErrorCodes : uint8_t {
 
 
 enum class CLNPParamAddress : uint8_t {
+    //TODO_HJK: looks like the CLNP config tool uses 0x74 for preset, but this isn't in the CLNP spec
+    PRESET          = 0b01110100, //0x74
     GROUP_MASK      = 0b11000000, //0xC0
     CHAIN_ADDRESS   = 0b11110000, //0xF0
     COMM_RATE       = 0b11110100, //0xF4
@@ -145,8 +148,9 @@ class clnp_device {
 
         void send_response(CLNPCmds cmd, uint8_t dest_addr, CLNPErrorCode error_code, bool is_acknowledgement);
 
-        void wled_set_color_fade(uint16_t fadeCounts, uint8_t intensity, uint8_t r, uint8_t g, uint8_t b, uint8_t w);
-        void wled_set_intensity_fade(uint16_t fadeCounts, uint8_t intensity);
+        void wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uint16_t kelvin);
+        void wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b, uint8_t w);
+        void wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensity);
         void wled_set_onoff(uint16_t fadeCounts, bool isOn);
 
     public:

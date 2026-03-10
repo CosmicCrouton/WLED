@@ -49,7 +49,7 @@ private:
 
   /// sets up the uart driver
   /// @return false on fail
-  esp_err_t setup_uart(clnp_port_t clnp_num, uint32_t baud_rate, QueueHandle_t *uart_queue);
+  esp_err_t setup_uart(clnp_port_t clnp_num, int baud_rate, QueueHandle_t *uart_queue);
 
   /// The internal clnp task.
   /// This is the main loop of the clnp receiver. It never returns.

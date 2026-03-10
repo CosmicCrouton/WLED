@@ -132,6 +132,7 @@ void rgb2hsv(const uint32_t rgb, CHSV32& hsv);
 inline CHSV rgb2hsv(const CRGB c) { CHSV32 hsv; rgb2hsv((uint32_t((byte(c.r) << 16) | (byte(c.g) << 8) | (byte(c.b)))), hsv); return CHSV(hsv); } // CRGB to hsv
 void colorKtoRGB(uint16_t kelvin, byte* rgb);
 void colorCTtoRGB(uint16_t mired, byte* rgb); //white spectrum to rgb
+void colorXYtosRGB(float x, float y, byte* rgb); // only defined if huesync disabled TODO
 void colorXYtoRGB(float x, float y, byte* rgb); // only defined if huesync disabled TODO
 void colorRGBtoXY(const byte* rgb, float* xy); // only defined if huesync disabled TODO
 void colorFromDecOrHexString(byte* rgb, const char* in);

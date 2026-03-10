@@ -54,9 +54,9 @@ void clnp_protocol::setup()
 
 void clnp_protocol::print_array(std::string msg, const uint8_t* data, size_t size)
 {
-    DEBUG_PRINTF("%s:", msg.c_str());
-
     return;
+
+    DEBUG_PRINTF("%s:", msg.c_str());
 
     for (int i = 0; i < size; i++) {
       DEBUG_PRINTF("0x%x,", data[i]);
@@ -405,6 +405,13 @@ bool clnp_device::process_message(CLNPDestinationType destination_type, uint8_t 
             }
             break;
 
+        case CLNPCmds::SET_CCT_INT_FADE:
+            DEBUG_PRINTF("SET_CCT_INT_FADE\n");
+            clnp_device::wled_set_cct_fade(data[2],
+                                           static_cast<uint16_t>((data[3] << 8) | data[4]),
+                                           static_cast<uint16_t>((data[5] << 8) | data[6]));
+            break;
+
         case CLNPCmds::COMMON_LIGHT_CONTROL:
             process_common_light_control_message(src_addr, &data[2], size - 2);
             break;
@@ -456,27 +463,32 @@ bool clnp_device::process_message(CLNPDestinationType destination_type, uint8_t 
 
             ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_open(this->nvs_namespace.c_str(), NVS_READWRITE, &nvs));
 
-            if (param_addr == CLNPParamAddress::GROUP_MASK) {
-                this->group_membership_flags = ((uint32_t)data[3] << 24) |
-                                               ((uint32_t)data[4] << 16) |
-                                               ((uint32_t)data[5] << 8)  |
-                                                (uint32_t)data[6];
+            switch (param_addr)
+            {
+                case CLNPParamAddress::GROUP_MASK:
+                    this->group_membership_flags = ((uint32_t)data[3] << 24) |
+                                                   ((uint32_t)data[4] << 16) |
+                                                   ((uint32_t)data[5] << 8)  |
+                                                    (uint32_t)data[6];
 
-                ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_set_u32(nvs, "group", this->group_membership_flags));
-                send_response(msgCmd, src_addr, CLNPErrorCode::NONE, true);
+                    ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_set_u32(nvs, "group", this->group_membership_flags));
+                    send_response(msgCmd, src_addr, CLNPErrorCode::NONE, true);
+                    break;
 
-            } else if (param_addr == CLNPParamAddress::CHAIN_ADDRESS) {
-                this->address = data[3];
-                ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_set_u8(nvs, "address", this->address));
+                case CLNPParamAddress::CHAIN_ADDRESS:
+                    this->address = data[3];
+                    ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_set_u8(nvs, "address", this->address));
 
-                send_response(msgCmd, src_addr, CLNPErrorCode::NONE, true);
-            } else if (param_addr == CLNPParamAddress::TERM_ENABLE) {
-                this->termination_enabled = data[3];
-                ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_set_u8(nvs, "terminated", this->termination_enabled));
+                    send_response(msgCmd, src_addr, CLNPErrorCode::NONE, true);
+                    break;
 
-                send_response(msgCmd, src_addr, CLNPErrorCode::NONE, true);
-            } else {
-                send_response(msgCmd, src_addr, CLNPErrorCode::PARAM_UNSUPPORTED_PARAM_ID, false);
+                case CLNPParamAddress::PRESET:
+                    applyPreset(data[3]);
+
+                //RS485 bus termination is done with pin strapping at the connector
+                case CLNPParamAddress::TERM_ENABLE:
+                default:
+                    send_response(msgCmd, src_addr, CLNPErrorCode::PARAM_UNSUPPORTED_PARAM_ID, false);
             }
 
             nvs_commit(nvs);
@@ -493,31 +505,33 @@ bool clnp_device::process_message(CLNPDestinationType destination_type, uint8_t 
             messageLayer[1] = static_cast<uint8_t>(CLNPCmds::GET_PARAM);
             messageLayer[2] = static_cast<uint8_t>(param_addr);
 
-            if (param_addr == CLNPParamAddress::GROUP_MASK) {
-                ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u32(nvs, "group", &this->group_membership_flags));
+            switch (param_addr)
+            {
+                case CLNPParamAddress::GROUP_MASK:
+                    ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u32(nvs, "group", &this->group_membership_flags));
 
-                memcpy(&messageLayer[3], &this->group_membership_flags, 4);
-                messageLayerSize = 7;
-                this->route(CLNPDestinationType::SINGLE_CHAIN_MESSAGE, src_addr,
-                            messageLayer, messageLayerSize);
+                    memcpy(&messageLayer[3], &this->group_membership_flags, 4);
+                    messageLayerSize = 7;
+                    this->route(CLNPDestinationType::SINGLE_CHAIN_MESSAGE, src_addr,
+                                messageLayer, messageLayerSize);
+                    break;
 
-            } else if (param_addr == CLNPParamAddress::CHAIN_ADDRESS) {
-                ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(nvs, "address", &this->address));
+                case CLNPParamAddress::CHAIN_ADDRESS:
+                    ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(nvs, "address", &this->address));
 
-                messageLayer[3] = this->address;
-                messageLayerSize = 4;
-                this->route(CLNPDestinationType::SINGLE_CHAIN_MESSAGE, src_addr,
-                            messageLayer, messageLayerSize);
-            } else if (param_addr == CLNPParamAddress::TERM_ENABLE) {
-                ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_get_u8(nvs, "termination", &this->termination_enabled));
+                    messageLayer[3] = this->address;
+                    messageLayerSize = 4;
+                    this->route(CLNPDestinationType::SINGLE_CHAIN_MESSAGE, src_addr,
+                                messageLayer, messageLayerSize);
 
-                messageLayer[3] = this->termination_enabled;
-                messageLayerSize = 4;
-                this->route(CLNPDestinationType::SINGLE_CHAIN_MESSAGE, src_addr,
-                            messageLayer, messageLayerSize);
+                    send_response(msgCmd, src_addr, CLNPErrorCode::PARAM_UNSUPPORTED_PARAM_ID, false);
+                    break;
 
-            } else {
-                send_response(msgCmd, src_addr, CLNPErrorCode::PARAM_UNSUPPORTED_PARAM_ID, false);
+                case CLNPParamAddress::PRESET:
+                //RS485 bus termination is done with pin strapping at the connector
+                case CLNPParamAddress::TERM_ENABLE:
+                default:
+                    send_response(msgCmd, src_addr, CLNPErrorCode::PARAM_UNSUPPORTED_PARAM_ID, false);
             }
 
             nvs_close(nvs);
@@ -567,7 +581,8 @@ void clnp_device::send_response(CLNPCmds cmd, uint8_t dest_addr, CLNPErrorCode e
 bool clnp_device::process_common_light_control_message(uint8_t src_addr, const uint8_t *data, size_t size)
 {
     float x, y;
-    uint8_t intensity, color_temp, fadeCounts;
+    uint16_t intensity, color_temp;
+    uint8_t fadeCounts;
     uint8_t rgb[4] = {0};
     bool isOn;
 
@@ -592,13 +607,12 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
             ESP_RETURN_ON_FALSE(size >= 4, false, "CLNP", "FADE_INTENSITY: insufficient data length");
 
             fadeCounts = data[1];
-            intensity = static_cast<uint8_t>(data[2]);  //intensity (Y), ignore LSB
+            intensity = static_cast<uint8_t>((data[2] << 8) | data[3]);  //intensity (Y)
 
             clnp_device::wled_set_intensity_fade(fadeCounts, intensity);
             break;
 
         case CLNPOpCommonLight::FADE_TO_PALETTE_COLOR_AND_INT:
-            DEBUG_PRINTLN("FADE_TO_PALETTE_COLOR_AND_INT");
             send_response(CLNPCmds::COMMON_LIGHT_CONTROL, src_addr, CLNPErrorCode::GEN_UNSUPPORTED_MESSAGE_TYPE, false);
             break;
 
@@ -607,11 +621,9 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
 
             fadeCounts = data[1];
             color_temp = static_cast<uint16_t>((data[2] << 8) | data[3]); //color temperature in Kelvin
-            intensity = static_cast<uint8_t>(data[4]);  //intensity (Y), ignore LSB
+            intensity  = static_cast<uint16_t>((data[4] << 8) | data[5]);  //intensity (Y)
 
-            colorKtoRGB(color_temp, rgb);
-
-            clnp_device::wled_set_color_fade(fadeCounts, intensity, rgb[0], rgb[1], rgb[2], rgb[3]);
+            clnp_device::wled_set_cct_fade(fadeCounts, intensity, color_temp);
             break;
 
         //        opcode   fade    X       Y     INT
@@ -619,14 +631,13 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
         case CLNPOpCommonLight::FADE_TO_COLOR_AND_INT:
             ESP_RETURN_ON_FALSE(size >= 8, false, "CLNP", "FADE_TO_COLOR_TEMP_AND_INT: insufficient data length");
 
-            //convert from CIE 1931 xyY to RGB
             fadeCounts = data[1];
-            //Skip LSB of each x/y/Y value since WLED uses 8 bit colors
             x = static_cast<float>((data[2] << 8) | data[3]) / static_cast<float>(UINT16_MAX);  //chromaticity (x)
             y = static_cast<float>((data[4] << 8) | data[5]) / static_cast<float>(UINT16_MAX);  //chromaticity (y)
-            intensity = static_cast<uint8_t>(data[6]);  //intensity (Y), ignore LSB
+            intensity = static_cast<uint16_t>((data[6] << 8) | data[7]);  //intensity (Y)
 
-            colorXYtoRGB(x, y, rgb);
+            //convert from CIE 1931 xyY to sRGB
+            colorXYtosRGB(x, y, rgb);
 
             clnp_device::wled_set_color_fade(fadeCounts, intensity, rgb[0], rgb[1], rgb[2], rgb[3]);
             break;
@@ -640,7 +651,32 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
     return true;
 }
 
-void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint8_t intensity, uint8_t r, uint8_t g, uint8_t b, uint8_t w)
+//FX_fcn.cpp, Segment &Segment::setCCT(uint16_t k)
+void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uint16_t kelvin)
+{
+    uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
+
+    Segment &seg = strip.getSegment(this->wled_segment_index);
+
+    //Scale intensity to 8 bits
+    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);
+
+    //Scale kelvin to 8 bits (assuming a range of 3500K to 5000K)
+    uint8_t cct_scaled = (kelvin - 3500) * (UINT8_MAX - 0) / (5000 - 3500) + 0;
+
+    if (seg.opacity != intensity_scaled || seg.cct != cct_scaled)
+    {
+        seg.setMode(0);
+        seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
+        seg.options |=   0x01 << SEG_OPTION_ON;
+        seg.colors[0] = RGBW32(0, 0, 0, 255);
+        seg.cct = cct_scaled;
+        seg.opacity = intensity_scaled;
+        stateChanged = true; // send UDP/WS broadcast
+    }
+}
+
+void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b, uint8_t w)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
 
@@ -648,27 +684,35 @@ void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint8_t intensity, ui
 
     uint32_t color = RGBW32(r, g, b, w);
 
-    if (seg.opacity != intensity || seg.colors[0] != color)
+    //Scale intensity to 8 bits
+    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);
+
+    if (seg.opacity != intensity_scaled || seg.colors[0] != color || seg.mode != 0)
     {
+        seg.setMode(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = color;
-        seg.opacity = intensity;
-        stateChanged = true;
+        seg.opacity = intensity_scaled;
+        stateChanged = true; // send UDP/WS broadcast
     }
 }
 
-void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint8_t intensity)
+void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensity)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
 
+    //Scale intensity to 8 bits
+    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);
+
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    if (seg.opacity != intensity) {
-        seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE);
+    if (seg.opacity != intensity_scaled) {
+        seg.setMode(0);
+        seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
-        seg.opacity = intensity;
-        stateChanged = true;
+        seg.opacity = intensity_scaled;
+        stateChanged = true; // send UDP/WS broadcast
     }
 }
 
