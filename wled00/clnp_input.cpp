@@ -37,6 +37,9 @@ void clnpReceiverTask(void *context)
           unsigned long execution_time;
 
 
+          //0x10 0x02 0x01 0x01  //Start of packet
+          //                    0x02 0x02 0x10 0x03  //End of packet
+
           switch(event.type) {
               case UART_DATA:
                   // Handle UART data received event
@@ -90,14 +93,27 @@ bool CLNPInput::installDriver()
 {
   DEBUG_PRINTF("CLNP port: %u\n", inputPortNum);
   if (setup_uart(inputPortNum, baudRate, &uart_queue) != ESP_OK) {
-    DEBUG_PRINTF("Error: Failed to install clnp driver\n");
+    DEBUG_PRINTF("Error: Failed to setup clnp uart\n");
     return false;
   }
+
+  //if (setup_internal_uart() != ESP_OK) {
+  //  DEBUG_PRINTF("Error: Failed to setup output reset uart\n");
+  //  return false;
+  //}
 
   DEBUG_PRINTF("CLNP RX pin: %u\n", rxPin);
   DEBUG_PRINTF("CLNP TX pin: %u\n", txPin);
   DEBUG_PRINTF("CLNP EN pin: %u\n", enPin);
-  uart_set_pin(inputPortNum, txPin, rxPin, enPin, UART_PIN_NO_CHANGE);
+//  DEBUG_PRINTF("RESET TX pin: %u\n", GPIO_NUM_21); //GPIO21
+//  DEBUG_PRINTF("RESET RX pin: %u\n", GPIO_NUM_17); //GPIO17
+
+  ESP_RETURN_ON_ERROR(uart_set_pin(inputPortNum, txPin, rxPin, enPin, UART_PIN_NO_CHANGE),
+                      "CLNP", "UART set pin failed");
+
+  //TODO:HJK, waiting on a new GPIO to be selected that doesn't conflict with ethernet board
+  //ESP_RETURN_ON_ERROR(uart_set_pin(UART_NUM_1, GPIO_NUM_21, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE),
+  //                    "CLNP", "UART set pin failed");
 
   initialized = true;
   DEBUG_PRINTLN("CLNP initialized!");
@@ -121,12 +137,11 @@ void CLNPInput::init(uint8_t rxPin, uint8_t txPin, uint8_t enPin, uint8_t inputP
         {(int8_t)txPin, false}, // these are not used as gpio pins, thus isOutput is always false.
         {(int8_t)rxPin, false},
         {(int8_t)enPin, false}};
+        //{(int8_t)GPIO_NUM_21, false},
+        //{(int8_t)GPIO_NUM_17, false}};
     const bool pinsAllocated = PinManager::allocateMultiplePins(pins, 3, PinOwner::CLNP);
     if (!pinsAllocated) {
-      DEBUG_PRINTF("CLNPInput: Error: Failed to allocate pins for CLNP. Pins already in use:\n");
-      //DEBUG_PRINTF("rx in use by: %i\n", PinManager::getPinOwner(rxPin));
-      //DEBUG_PRINTF("tx in use by: %i\n", PinManager::getPinOwner(txPin));
-      //DEBUG_PRINTF("en in use by: %i\n", PinManager::getPinOwner(enPin));
+      DEBUG_PRINTF("CLNPInput: Error: Failed to allocate pins for CLNP. Pins already in use!\n");
       return;
     }
 
@@ -143,7 +158,7 @@ void CLNPInput::init(uint8_t rxPin, uint8_t txPin, uint8_t enPin, uint8_t inputP
     }
   }
   else {
-    DEBUG_PRINTLN("CLNP input disabled due to rxPin, enPin or txPin not set");
+    DEBUG_PRINTLN("CLNP input disabled due to rxPin, enPin or txPin not configured");
     return;
   }
 }
@@ -170,12 +185,12 @@ esp_err_t CLNPInput::setup_uart(clnp_port_t clnp_num, int baud_rate, QueueHandle
 
   // Configure UART parameters
   uart_config_t uart_config = {
-      .baud_rate = baud_rate,            // Set baud rate
-      .data_bits = UART_DATA_8_BITS,     // Set data bits to 8
-      .parity = UART_PARITY_DISABLE,     // Disable parity check
-      .stop_bits = UART_STOP_BITS_1,     // Set stop bits to 1
-      .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,  // Disable hardware flow control
-      .source_clk = UART_SCLK_APB,       // Use APB clock
+      .baud_rate = baud_rate,
+      .data_bits = UART_DATA_8_BITS,
+      .parity = UART_PARITY_DISABLE,
+      .stop_bits = UART_STOP_BITS_1,
+      .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+      .source_clk = UART_SCLK_APB,
   };
 
   ESP_RETURN_ON_ERROR(uart_driver_install(clnp_num, CLNP_PACKET_SIZE_MAX * 2, CLNP_PACKET_SIZE_MAX * 2, 20, uart_queue, 0),
@@ -194,6 +209,27 @@ esp_err_t CLNPInput::setup_uart(clnp_port_t clnp_num, int baud_rate, QueueHandle
   ESP_RETURN_ON_ERROR(uart_set_rx_timeout(clnp_num, 3), "CLNP", "UART set rx timeout failed");
 
   ESP_RETURN_ON_ERROR(uart_flush(clnp_num), "CLNP", "UART flush failed");
+
+  return ESP_OK;
+}
+
+//Used internally to reset output channels, not related to CLNP protocol
+esp_err_t CLNPInput::setup_internal_uart() {
+
+  // Configure UART parameters
+  uart_config_t uart_config = {
+      .baud_rate = 115200,
+      .data_bits = UART_DATA_8_BITS,
+      .parity = UART_PARITY_DISABLE,
+      .stop_bits = UART_STOP_BITS_1,
+      .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+      .source_clk = UART_SCLK_APB
+  };
+
+  // Apply UART configuration
+  ESP_RETURN_ON_ERROR(uart_param_config(UART_NUM_1, &uart_config), "CLNP", "Internal UART param config failed");
+
+  ESP_RETURN_ON_ERROR(uart_driver_install(UART_NUM_1, 0, 100, 0, NULL, 0), "CLNP", "Internal UART driver install failed");
 
   return ESP_OK;
 }

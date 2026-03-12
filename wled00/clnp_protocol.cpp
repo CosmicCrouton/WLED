@@ -607,7 +607,7 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
             ESP_RETURN_ON_FALSE(size >= 4, false, "CLNP", "FADE_INTENSITY: insufficient data length");
 
             fadeCounts = data[1];
-            intensity = static_cast<uint8_t>((data[2] << 8) | data[3]);  //intensity (Y)
+            intensity = static_cast<uint16_t>((data[2] << 8) | data[3]);  //intensity (Y)
 
             clnp_device::wled_set_intensity_fade(fadeCounts, intensity);
             break;

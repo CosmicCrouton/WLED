@@ -35,6 +35,21 @@
 			document.head.appendChild(l);
 		})();
 
+		function rstOutput(index) {
+
+			var command = JSON.stringify({"rstchannel": index});
+
+			fetch(getURL('/json/si'), {
+				method: 'post',
+				headers: {"Content-Type": "application/json; charset=UTF-8"},
+				body: command
+			})
+			.catch((e)=>{
+				showToast(e, true);
+				resolve();
+			});
+		}
+
 		function S() {
 			getLoc();
 			loadJS(getURL('/settings/s.js?p=2'), false, ()=>{
@@ -519,7 +534,9 @@ mA/LED: <select name="LAsel${s}" onchange="enLA(this,'${s}');UI();">
 <div id="dig${s}s" style="display:inline"><br>Skip first LEDs: <input type="number" name="SL${s}" min="0" max="255" value="0" oninput="UI()"></div>
 <div id="dig${s}f" style="display:inline"><br><span id="off${s}">Off Refresh</span>: <input id="rf${s}" type="checkbox" name="RF${s}"></div>
 <div id="dig${s}a" style="display:inline"><br>Auto-calculate W channel from RGB:<br><select name="AW${s}"><option value=0>None</option><option value=1>Brighter</option><option value=2>Accurate</option><option value=3>Dual</option><option value=4>Max</option></select>&nbsp;</div>
+<div id="dig${s}p"style="display:inline"><br>Power Output ${i+1} (J${i+5}): <button type="button" id="rstbtn${s}" onclick="rstOutput(${i})">Reset</button></div>
 </div>`;
+
 				f.insertAdjacentHTML("beforeend", cn);
 				// fill led types (credit @netmindz)
 				f.querySelectorAll("select[name^=LT]").forEach((sel,n)=>{

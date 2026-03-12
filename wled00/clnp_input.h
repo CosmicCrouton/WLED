@@ -40,9 +40,6 @@ private:
    */
   void checkAndUpdateConfig();
 
-  /// overrides everything and turns on all leds
-  void turnOnAllLeds();
-
   /// installs the clnp driver
   /// @return false on fail
   bool installDriver();
@@ -50,6 +47,9 @@ private:
   /// sets up the uart driver
   /// @return false on fail
   esp_err_t setup_uart(clnp_port_t clnp_num, int baud_rate, QueueHandle_t *uart_queue);
+
+  /// sets up the internal uart driver used for resetting outputs
+  esp_err_t setup_internal_uart();
 
   /// The internal clnp task.
   /// This is the main loop of the clnp receiver. It never returns.
