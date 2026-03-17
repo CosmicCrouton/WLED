@@ -149,7 +149,7 @@ class clnp_device {
         void send_response(CLNPCmds cmd, uint8_t dest_addr, CLNPErrorCode error_code, bool is_acknowledgement);
 
         void wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uint16_t kelvin);
-        void wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b, uint8_t w);
+        void wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b);
         void wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensity);
         void wled_set_onoff(uint16_t fadeCounts, bool isOn);
 

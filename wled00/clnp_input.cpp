@@ -52,6 +52,11 @@ void clnpReceiverTask(void *context)
                       bytes_processed += clnp_protocol::process_transport(&instance->clnpdata[bytes_processed],
                                                                           read_len - bytes_processed);
                   }
+
+                  //Trigger WLED UI updates
+                  stateChanged = true; // send UDP/WS broadcast
+                  stateUpdated(CALL_MODE_NOTIFICATION);
+
                   end_time = micros();
 
                   execution_time = end_time - start_time; // Time in microseconds

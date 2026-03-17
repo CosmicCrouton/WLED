@@ -10,7 +10,7 @@ size_t NetworkDebugPrinter::write(uint8_t c) {
       WiFi.hostByName(netDebugPrintHost, debugPrintHostIP, 750);
     #else
       #ifdef WLED_USE_ETHERNET
-        ETH.hostByName(netDebugPrintHost, debugPrintHostIP);
+        //ETH.hostByName(netDebugPrintHost, debugPrintHostIP);
       #else
         WiFi.hostByName(netDebugPrintHost, debugPrintHostIP);
       #endif
@@ -31,7 +31,7 @@ size_t NetworkDebugPrinter::write(const uint8_t *buf, size_t size) {
       WiFi.hostByName(netDebugPrintHost, debugPrintHostIP, 750);
     #else
       #ifdef WLED_USE_ETHERNET
-        ETH.hostByName(netDebugPrintHost, debugPrintHostIP);
+        //ETH.hostByName(netDebugPrintHost, debugPrintHostIP);
       #else
         WiFi.hostByName(netDebugPrintHost, debugPrintHostIP);
       #endif

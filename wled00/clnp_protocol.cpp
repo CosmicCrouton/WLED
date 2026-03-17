@@ -639,7 +639,7 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
             //convert from CIE 1931 xyY to sRGB
             colorXYtosRGB(x, y, rgb);
 
-            clnp_device::wled_set_color_fade(fadeCounts, intensity, rgb[0], rgb[1], rgb[2], rgb[3]);
+            clnp_device::wled_set_color_fade(fadeCounts, intensity, rgb[0], rgb[1], rgb[2]);
             break;
 
         default:
@@ -655,64 +655,74 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
 void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uint16_t kelvin)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
+    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);     //Scale intensity to 8 bits
+    uint8_t cct_scaled = (kelvin - 3500) * (UINT8_MAX - 0) / (5000 - 3500) + 0; //Scale kelvin to 8 bits (assuming a range of 3500K to 5000K)
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    //Scale intensity to 8 bits
-    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);
+    CRGBW rgb_adjusted(seg.colors[0]);
+    rgb_adjusted.w = intensity_scaled;
 
-    //Scale kelvin to 8 bits (assuming a range of 3500K to 5000K)
-    uint8_t cct_scaled = (kelvin - 3500) * (UINT8_MAX - 0) / (5000 - 3500) + 0;
-
-    if (seg.opacity != intensity_scaled || seg.cct != cct_scaled)
+    if (seg.mode != 0 || seg.colors[0] != rgb_adjusted || seg.cct != cct_scaled)
     {
         seg.setMode(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
-        seg.colors[0] = RGBW32(0, 0, 0, 255);
+        seg.colors[0] = rgb_adjusted;
         seg.cct = cct_scaled;
-        seg.opacity = intensity_scaled;
-        stateChanged = true; // send UDP/WS broadcast
     }
 }
 
-void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b, uint8_t w)
+void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
+    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);     //Scale intensity to 8 bits
+    CRGBW color = CRGBW(r, g, b, 0);
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    uint32_t color = RGBW32(r, g, b, w);
+    CHSV32 hsv;
+    CRGBW rgb_adjusted(seg.colors[0]);
+    uint8_t w = rgb_adjusted.w; //Set color command should not change white level
 
-    //Scale intensity to 8 bits
-    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);
+    //Convert to HSV to more easily adjust the intensity
+    rgb2hsv(color, hsv);
+    hsv.v = intensity_scaled;
+    hsv2rgb(hsv, rgb_adjusted.color32);
+    rgb_adjusted.w = w; //Restore original white level
 
-    if (seg.opacity != intensity_scaled || seg.colors[0] != color || seg.mode != 0)
+    if (seg.mode != 0 || seg.colors[0] != rgb_adjusted.color32)
     {
         seg.setMode(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
-        seg.colors[0] = color;
-        seg.opacity = intensity_scaled;
-        stateChanged = true; // send UDP/WS broadcast
+        seg.colors[0] = rgb_adjusted.color32;
     }
 }
 
 void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensity)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
-
-    //Scale intensity to 8 bits
-    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);
+    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);    //Scale intensity to 8 bits
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    if (seg.opacity != intensity_scaled) {
+    CHSV32 hsv;
+    CRGBW rgb_adjusted(seg.colors[0]);
+    uint8_t w = rgb_adjusted.w; //Set intensity command should not change white level
+
+    //Convert to HSV to more easily adjust the intensity
+    rgb2hsv(seg.colors[0], hsv);
+    hsv.v = intensity_scaled;
+    hsv2rgb(hsv, rgb_adjusted.color32);
+    rgb_adjusted.w = w; //Restore original white level
+
+    if (seg.mode != 0 || seg.colors[0] != rgb_adjusted.color32)
+    {
         seg.setMode(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
-        seg.opacity = intensity_scaled;
-        stateChanged = true; // send UDP/WS broadcast
+        seg.colors[0] = rgb_adjusted.color32;
     }
 }
 
@@ -730,7 +740,5 @@ void clnp_device::wled_set_onoff(uint16_t fadeCounts, bool isOn)
             seg.options |=   0x01 << SEG_OPTION_ON;
         else
             seg.options &= ~(0x01 << SEG_OPTION_ON);
-
-        stateChanged = true; // send UDP/WS broadcast
     }
 }
