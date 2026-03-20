@@ -10,10 +10,11 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
-uint8_t clnp_protocol::uart_num = 2;
+#include "freertos/message_buffer.h"
+
 clnp_device clnp_protocol::devices[CLNP_DEVICE_COUNT];
 
-void clnp_protocol::setup()
+esp_err_t clnp_protocol::setup(uint16_t &tx_delay_ms)
 {
     // Get the NVS namespace and key value
     nvs_handle_t nvs;
@@ -49,7 +50,13 @@ void clnp_protocol::setup()
         nvs_close(nvs);
     }
 
-    uart_num = 2; //TODO: Make configurable
+    //Derive delay_ms from serial number to stagger responses from multiple devices
+    //Only use the first logical device, there's no point delaying for every logical device response
+    uint64_t serial_num;
+    memcpy(&serial_num, &devices[0].serial_number[0], CLNP_SERIAL_NUMBER_SIZE);
+    tx_delay_ms = static_cast<uint16_t>(serial_num % 50 * 2);
+
+    return ESP_OK;
 }
 
 void clnp_protocol::print_array(std::string msg, const uint8_t* data, size_t size)
@@ -227,13 +234,7 @@ boolean clnp_device::transport(const uint8_t* routeLayer, size_t routeLayerSize)
     transportLayer[transportLayerSize-2] = CLNP_DLE;
     transportLayer[transportLayerSize-1] = CLNP_ETX;
 
-    //TODO_HJK: vary delay based on serial number (9-146 section 5.2.2)
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-
-    if (uart_write_bytes(clnp_protocol::uart_num, transportLayer, transportLayerSize) != transportLayerSize) {
-        DEBUG_PRINTF("Send data critical failure.");
-        return false;
-    }
+    xMessageBufferSend(CLNPInput::clnp_tx_message_buffer, (void*)transportLayer, transportLayerSize, 0);
 
     clnp_protocol::print_array("tx tranport: ", transportLayer, transportLayerSize);
     return true;
@@ -242,19 +243,19 @@ boolean clnp_device::transport(const uint8_t* routeLayer, size_t routeLayerSize)
 //remove escape characters and check for proper framing
 size_t clnp_protocol::process_transport(const uint8_t *data, size_t size)
 {
-    ESP_RETURN_ON_FALSE(size >= 4, size, "CLNP", "process_transport: less than 4 bytes");
+    ESP_RETURN_ON_FALSE(size >= 4, size, "process_transport", "Insufficient data (less than 4 bytes)");
 
     //CLNP packet must start with DLE STX (0x10 0x02) and end with DLE ETX (0x10 0x03)
     if (data[0] != CLNP_DLE && data[1] != CLNP_ETX)
     {
-        DEBUG_PRINTLN("process_transport: packet must start with DLE+ETX");
-        return 2;
+        DEBUG_PRINTLN("Packet must start with DLE+ETX");
+        return 0;
     }
 
     uint8_t routing_layer_data[270];
     std::size_t routing_layer_data_size = 0;
     bool complete_transport_packet_found = false;
-    DEBUG_PRINTLN("DLE+ETX check passed");
+    uint8_t escape_bytes_count = 0;
 
     for (int i=2; i < size-1; i++) {
         //DLE+ETX (end of transport packet) encountered
@@ -266,6 +267,7 @@ size_t clnp_protocol::process_transport(const uint8_t *data, size_t size)
         //0x10 bytes (DLE) are escaped (doubled) within the transport layer, so undo that
         if (data[i] == CLNP_DLE && data[i+1] == CLNP_DLE) {
             i++;
+            escape_bytes_count++;
         }
 
         routing_layer_data[routing_layer_data_size] = data[i];
@@ -273,14 +275,14 @@ size_t clnp_protocol::process_transport(const uint8_t *data, size_t size)
     }
 
     if (complete_transport_packet_found) {
-        DEBUG_PRINTLN("Full frame received");
+        DEBUG_PRINTLN("Full CLNP frame received");
         clnp_protocol::proccess_route_layer(routing_layer_data, routing_layer_data_size);
+        return routing_layer_data_size + 4 + escape_bytes_count; //+4 for DLE+STX and DLE+ETX
     }
     else {
-        DEBUG_PRINTLN("from_bytes: complete transport packet NOT found");
+        DEBUG_PRINTLN("Incomplete transport packet!");
+        return 0;
     }
-
-    return routing_layer_data_size + 4; //+4 for DLE+STX and DLE+ETX
 }
 
 //check for address match and crc validity
@@ -327,6 +329,9 @@ bool clnp_protocol::proccess_route_layer(const uint8_t *data, size_t size)
                                     &data[2+destination_field_len], size - 4 - destination_field_len);
         }
     }
+
+    //Trigger WLED UI updates
+    stateUpdated(CALL_MODE_DIRECT_CHANGE);
 
     return false;
 }
@@ -666,10 +671,13 @@ void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uin
     if (seg.mode != 0 || seg.colors[0] != rgb_adjusted || seg.cct != cct_scaled)
     {
         seg.setMode(0);
+        strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = rgb_adjusted;
         seg.cct = cct_scaled;
+
+        stateChanged = true;
     }
 }
 
@@ -694,9 +702,12 @@ void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, u
     if (seg.mode != 0 || seg.colors[0] != rgb_adjusted.color32)
     {
         seg.setMode(0);
+        strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = rgb_adjusted.color32;
+
+        stateChanged = true;
     }
 }
 
@@ -720,9 +731,12 @@ void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensit
     if (seg.mode != 0 || seg.colors[0] != rgb_adjusted.color32)
     {
         seg.setMode(0);
+        strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = rgb_adjusted.color32;
+
+        stateChanged = true;
     }
 }
 
@@ -734,11 +748,14 @@ void clnp_device::wled_set_onoff(uint16_t fadeCounts, bool isOn)
 
     bool prev = (seg.options >> SEG_OPTION_ON) & 0x01;
     if (isOn != prev) {
+        strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
 
         if (isOn)
             seg.options |=   0x01 << SEG_OPTION_ON;
         else
             seg.options &= ~(0x01 << SEG_OPTION_ON);
+
+        stateChanged = true;
     }
 }

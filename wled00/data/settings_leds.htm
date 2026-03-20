@@ -44,6 +44,11 @@
 				headers: {"Content-Type": "application/json; charset=UTF-8"},
 				body: command
 			})
+			.then(response => {
+				if (response.ok) {
+					showToast("Output " + (index + 1) + " reset.");
+				}
+			})
 			.catch((e)=>{
 				showToast(e, true);
 				resolve();

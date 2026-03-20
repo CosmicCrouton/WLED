@@ -562,6 +562,9 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
   int channelReset = root[F("rstchannel")] | -1;
   if (channelReset >= 0) {
     DEBUG_PRINTF("Resetting channel: %d\n", channelReset);
+
+    Serial1.printf("CP%dRE\n", channelReset);
+    vTaskDelay(pdMS_TO_TICKS(10));
     Serial1.printf("CP%dSE\n", channelReset);
   }
 

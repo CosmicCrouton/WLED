@@ -552,7 +552,7 @@ void WLED::setup()
 #endif
 
 #ifdef WLED_ENABLE_CLNP
-  clnpInput.init(clnpInputReceivePin, clnpInputTransmitPin, clnpInputEnablePin, clnpInputPort, clnpInputDefaultBaud);
+  clnpInput.init(CLNP_NUM_2, clnpInputReceivePin, clnpInputTransmitPin, clnpInputEnablePin, clnpInputDefaultBaud);
 #endif
 
 #ifdef WLED_ENABLE_ADALIGHT

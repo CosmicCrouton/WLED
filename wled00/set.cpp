@@ -452,8 +452,6 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
     clnpInputTransmitPin = request->arg(F("CLNPT")).toInt();
     clnpInputReceivePin = request->arg(F("CLNPR")).toInt();
     clnpInputEnablePin = request->arg(F("CLNPE")).toInt();
-    clnpInputPort = request->arg(F("CLNPP")).toInt();
-    if(clnpInputPort <= 0 || clnpInputPort > 2) clnpInputPort = 2;
 #endif
 
     #ifndef WLED_DISABLE_ALEXA

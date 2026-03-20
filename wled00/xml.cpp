@@ -487,7 +487,6 @@ void getSettingsJS(byte subPage, Print& settingsScript)
     printSetFormValue(settingsScript,SET_F("CLNPT"),clnpInputTransmitPin);
     printSetFormValue(settingsScript,SET_F("CLNPR"),clnpInputReceivePin);
     printSetFormValue(settingsScript,SET_F("CLNPE"),clnpInputEnablePin);
-    printSetFormValue(settingsScript,SET_F("CLNPP"),clnpInputPort);
 #endif
 
     #ifndef WLED_DISABLE_ALEXA

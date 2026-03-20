@@ -9,6 +9,8 @@
 #define CLNP_DEVICE_COUNT 4
 #endif
 
+#define CLNP_SERIAL_NUMBER_SIZE 8
+
 //CLNP 9-146 section 1.6.1
 typedef enum CLNPMessageFlags_t: uint8_t {
     COMMAND_RESPONSE =  0b10000000, //0 = command, 1 = response
@@ -155,12 +157,13 @@ class clnp_device {
 
     public:
         uint8_t wled_segment_index;
-        uint8_t serial_number[8];
+        uint8_t serial_number[CLNP_SERIAL_NUMBER_SIZE];
         uint8_t address;
         uint8_t termination_enabled;
         uint32_t group_membership_flags;
         uint8_t fade_step_duration_ms;
         bool is_muted;
+        uint16_t delay_ms;
 
         std::string nvs_namespace;
 };
@@ -180,7 +183,7 @@ class clnp_protocol {
         static uint16_t crc16(const uint8_t *data, size_t size);
         static size_t get_addr_size(CLNPDestinationType destType);
 
-        static void setup();
+        static esp_err_t setup(uint16_t &tx_delay_ms);
 };
 
 

@@ -3,9 +3,8 @@
 #include <atomic>
 #include <mutex>
 
-#define CLNP_BAUD_RATE_MIN 600
-#define CLNP_BAUD_RATE_MAX 153000
-#define CLNP_PACKET_SIZE 60
+#include "freertos/message_buffer.h"
+
 #define CLNP_PACKET_SIZE_MAX 270
 
 /** @brief CLNP port constants.*/
@@ -18,21 +17,17 @@ enum clnp_num_t {
   CLNP_NUM_MAX
 };
 
+
 /** @brief CLNP port type.*/
 typedef unsigned int clnp_port_t;
 
-/*
- * Support for CLNP input via serial (e.g. max485) on ESP32
- * ESP32 Library from:
- * https://github.com/cosmiccrouton/esp_clnp
- */
+
 class CLNPInput
 {
 public:
-  void init(uint8_t rxPin, uint8_t txPin, uint8_t enPin, uint8_t inputPortNum, uint32_t baud_rate);
+  esp_err_t init(clnp_num_t clnp_num, uint8_t rxPin, uint8_t txPin, uint8_t enPin, uint32_t baud_rate);
 
-  /// True if clnp is currently connected
-  bool isConnected() const { return connected; }
+  static MessageBufferHandle_t clnp_tx_message_buffer;
 
 private:
   /**
@@ -42,39 +37,27 @@ private:
 
   /// installs the clnp driver
   /// @return false on fail
-  bool installDriver();
+  esp_err_t installDriver(clnp_num_t clnp_num, uint8_t rxPin, uint8_t txPin, uint8_t enPin, uint32_t baud_rate);
 
   /// sets up the uart driver
   /// @return false on fail
-  esp_err_t setup_uart(clnp_port_t clnp_num, int baud_rate, QueueHandle_t *uart_queue);
+  esp_err_t setup_uart(clnp_port_t clnp_num, int baud_rate, QueueHandle_t uart_queue);
 
   /// sets up the internal uart driver used for resetting outputs
   esp_err_t setup_internal_uart();
 
   /// The internal clnp task.
   /// This is the main loop of the clnp receiver. It never returns.
-  friend void clnpReceiverTask(void * context);
+  friend void clnpReceiverTask(void* context);
 
-  uint8_t inputPortNum = 255;
-  uint8_t rxPin = 255;
-  uint8_t txPin = 255;
-  uint8_t enPin = 255;
-  uint32_t baudRate = 19200;
+  /// The internal clnp task.
+  /// This is the main loop of the clnp transmitter. It never returns.
+  friend void clnpTransmitterTask(void* context);
 
-  /// is written to by the clnp receive task.
-  byte clnpdata[CLNP_PACKET_SIZE];
-  /// True once the clnp input has been initialized successfully
-  bool initialized = false; // true once init finished successfully
-  /// True if clnp is currently connected
-  std::atomic<bool> connected{false};
-  std::atomic<bool> identify{false};
-  /// Timestamp of the last time a clnp frame was received
-  unsigned long lastUpdate = 0;
+  clnp_num_t clnp_num = CLNP_NUM_2;
+  uint16_t tx_delay_ms = 0;
 
   /// Taskhandle of the clnp task that is running in the background
   TaskHandle_t task;
-  QueueHandle_t uart_queue;
-
-  /// Guards access to clnpData
-  std::mutex clnpDataLock;
+  static QueueHandle_t uart_queue;
 };
