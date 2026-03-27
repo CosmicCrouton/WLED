@@ -559,11 +559,16 @@ bool deserializeState(JsonObject root, byte callMode, byte presetId)
   int delay_ms = root[F("delay_ms")] | 0;
 
   if (channelReset >= 0) {
-    DEBUG_PRINTF("Resetting channel: %d\n", channelReset);
+    DEBUG_PRINTF("Resetting channel: %d, delay: %d\n", channelReset, delay_ms);
+
+    Serial1.end();
+    Serial1.begin(115200, SERIAL_8N1, GPIO_NUM_34, GPIO_NUM_15);
 
     Serial1.printf("CP%dRE\n", channelReset);
+    Serial1.flush();
     vTaskDelay(pdMS_TO_TICKS(delay_ms));
     Serial1.printf("CP%dSE\n", channelReset);
+    Serial1.flush();
   }
 
 

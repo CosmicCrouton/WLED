@@ -191,12 +191,12 @@ esp_err_t CLNPInput::installDriver(clnp_num_t clnp_num, uint8_t rxPin, uint8_t t
   ESP_RETURN_ON_ERROR(uart_set_pin(clnp_num, txPin, rxPin, enPin, UART_PIN_NO_CHANGE),
                       "CLNP", "UART set pin failed");
 
-  ESP_RETURN_ON_ERROR(uart_set_pin(UART_NUM_1, GPIO_NUM_15, GPIO_NUM_34, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE),
-                      "CLNP", "UART set pin failed");
+  //ESP_RETURN_ON_ERROR(uart_set_pin(UART_NUM_1, GPIO_NUM_15, GPIO_NUM_34, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE),
+  //                    "CLNP", "UART set pin failed");
 
   ESP_RETURN_ON_ERROR(setup_uart(clnp_num, baud_rate, CLNPInput::uart_queue), "CLNP", "Failed to setup clnp uart");
 
-  ESP_RETURN_ON_ERROR(setup_internal_uart(), "CLNP", "Failed to setup internal uart");
+  //ESP_RETURN_ON_ERROR(setup_internal_uart(), "CLNP", "Failed to setup internal uart");
 
   DEBUG_PRINTLN("CLNP initialized!");
 
