@@ -672,7 +672,7 @@ void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uin
     {
         seg.setMode(0);
         strip.setTransition(0);
-        seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
+        seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = rgb_adjusted;
         seg.cct = cct_scaled;
@@ -703,7 +703,7 @@ void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, u
     {
         seg.setMode(0);
         strip.setTransition(0);
-        seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
+        seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = rgb_adjusted.color32;
 
@@ -732,7 +732,7 @@ void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensit
     {
         seg.setMode(0);
         strip.setTransition(0);
-        seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
+        seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
         seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = rgb_adjusted.color32;
 
@@ -749,7 +749,7 @@ void clnp_device::wled_set_onoff(uint16_t fadeCounts, bool isOn)
     bool prev = (seg.options >> SEG_OPTION_ON) & 0x01;
     if (isOn != prev) {
         strip.setTransition(0);
-        seg.startTransition(fade_duration, blendingStyle != BLEND_STYLE_FADE); // start transition prior to change
+        seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
 
         if (isOn)
             seg.options |=   0x01 << SEG_OPTION_ON;
