@@ -24,6 +24,34 @@
 		function mustR(t)  { return !!(gT(t).c & 0x20); }           // Off refresh is mandatory
 		function numPins(t){ return Math.max(gT(t).t.length, 1); }  // type length determines number of GPIO pins
 		function chrID(x)  { return String.fromCharCode((x<10?48:55)+x); }
+		function rstOutput(index) {
+
+			const delay_ms = document.getElementById('delay_ms_' + index).value
+
+			var command = JSON.stringify({
+				"rstchannel": index,
+				"delay_ms": delay_ms
+			});
+
+			fetch(getURL('/json/si'), {
+				method: 'post',
+				headers: {"Content-Type": "application/json; charset=UTF-8"},
+				body: command
+			})
+			.then(response => {
+				if (response.ok) {
+					showToast("Output " + (index + 1) + " reset for " + (delay_ms) + "ms.");
+				}
+				else
+				{
+					showToast("Failed...");
+				}
+			})
+			.catch((e)=>{
+				showToast(e, true);
+				resolve();
+			});
+		}
 		function S() {
 			getLoc();
 			loadJS(getURL('/settings/s.js?p=2'), false, ()=>{
@@ -461,6 +489,7 @@ mA/LED: <select name="LAsel${s}" onchange="enLA(this,'${s}');UI();">
 <div id="dig${s}s" style="display:inline"><br>Skip first LEDs: <input type="number" name="SL${s}" min="0" max="255" value="0" oninput="UI()"></div>
 <div id="dig${s}f" style="display:inline"><br><span id="off${s}">Off Refresh</span>: <input id="rf${s}" type="checkbox" name="RF${s}"></div>
 <div id="dig${s}a" style="display:inline"><br>Auto-calculate W channel from RGB:<br><select name="AW${s}"><option value=0>None</option><option value=1>Brighter</option><option value=2>Accurate</option><option value=3>Dual</option><option value=4>Max</option></select>&nbsp;</div>
+<div id="dig${s}p"style="display:inline"><br>Power Output ${i+1} (J${i+5}): <button type="button" id="rstbtn${s}" onclick="rstOutput(${i})">Reset</button><br><input type="number" id="delay_ms_${s}" min="0" max="1000" value="10"></div>
 </div>`;
 				f.insertAdjacentHTML("beforeend", cn);
 				// fill led types (credit @netmindz)

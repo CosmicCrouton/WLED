@@ -1,4 +1,5 @@
 #include "wled.h"
+#include "colors.h"
 
 /*
  * Color conversion & utility methods
@@ -148,7 +149,7 @@ CRGBPalette16 generateHarmonicRandomPalette(CRGBPalette16 &basepalette)
       harmonics[1] = basehue + 205 + random8(10);
       harmonics[2] = basehue -   5 + random8(10);
       break;
-    
+
     case 3: // square
       harmonics[0] = basehue +  85 + random8(10);
       harmonics[1] = basehue + 175 + random8(10);
@@ -185,9 +186,9 @@ CRGBPalette16 generateHarmonicRandomPalette(CRGBPalette16 &basepalette)
   //apply saturation & gamma correction
   CRGB RGBpalettecolors[4];
   for (int i = 0; i < 4; i++) {
-    if (makepastelpalette && palettecolors[i].saturation > 180) { 
+    if (makepastelpalette && palettecolors[i].saturation > 180) {
       palettecolors[i].saturation -= 160; //desaturate all four colors
-    }    
+    }
     RGBpalettecolors[i] = (CRGB)palettecolors[i]; //convert to RGB
     RGBpalettecolors[i] = gamma32(((uint32_t)RGBpalettecolors[i]) & 0x00FFFFFFU); //strip alpha from CRGB
   }
@@ -204,6 +205,58 @@ CRGBPalette16 generateRandomPalette()  //generate fully random palette
                        CHSV(random8(), random8(160, 255), random8(128, 255)),
                        CHSV(random8(), random8(160, 255), random8(128, 255)),
                        CHSV(random8(), random8(160, 255), random8(128, 255)));
+}
+
+void hsv2rgb(const CHSV32& hsv, uint32_t& rgb) // convert HSV (16bit hue) to RGB (32bit with white = 0)
+{
+  unsigned int remainder, region, p, q, t;
+  unsigned int h = hsv.h;
+  unsigned int s = hsv.s;
+  unsigned int v = hsv.v;
+  if (s == 0) {
+      rgb = v << 16 | v << 8 | v;
+      return;
+  }
+  region = h / 10923;  // 65536 / 6 = 10923
+  remainder = (h - (region * 10923)) * 6;
+  p = (v * (255 - s)) >> 8;
+  q = (v * (255 - ((s * remainder) >> 16))) >> 8;
+  t = (v * (255 - ((s * (65535 - remainder)) >> 16))) >> 8;
+  switch (region) {
+    case 0:
+      rgb = v << 16 | t << 8 | p; break;
+    case 1:
+      rgb = q << 16 | v << 8 | p; break;
+    case 2:
+      rgb = p << 16 | v << 8 | t; break;
+    case 3:
+      rgb = p << 16 | q << 8 | v; break;
+    case 4:
+      rgb = t << 16 | p << 8 | v; break;
+    default:
+      rgb = v << 16 | p << 8 | q; break;
+  }
+}
+
+void rgb2hsv(const uint32_t rgb, CHSV32& hsv) // convert RGB to HSV (16bit hue), much more accurate and faster than fastled version
+{
+    hsv.raw = 0;
+    int32_t r = (rgb>>16)&0xFF;
+    int32_t g = (rgb>>8)&0xFF;
+    int32_t b = rgb&0xFF;
+    int32_t minval, maxval, delta;
+    minval = min(r, g);
+    minval = min(minval, b);
+    maxval = max(r, g);
+    maxval = max(maxval, b);
+    if (maxval == 0)  return; // black
+    hsv.v = maxval;
+    delta = maxval - minval;
+    hsv.s = (255 * delta) / maxval;
+    if (hsv.s == 0)  return; // gray value
+    if (maxval == r) hsv.h = (10923 * (g - b)) / delta;
+    else if (maxval == g)  hsv.h = 21845 + (10923 * (b - r)) / delta;
+    else hsv.h = 43690 + (10923 * (r - g)) / delta;
 }
 
 void colorHStoRGB(uint16_t hue, byte sat, byte* rgb) //hue, sat to rgb
@@ -273,6 +326,38 @@ void colorCTtoRGB(uint16_t mired, byte* rgb) //white spectrum to rgb, bins
   } else {
     rgb[0]=237;rgb[1]=255;rgb[2]=239;//150
   }
+}
+
+//Converts CIE 1931 xyY to sRGB
+void colorXYtosRGB(float x, float y, byte* rgb)
+{
+  float X, Y = 1.0f, Z;
+
+  // Convert xyY to XYZ
+  if (y == 0.0f)
+  {
+    X = 0.0f; Y = 0.0f; Z = 0.0f;
+  }
+  else
+  {
+    X = (x / y) * Y;
+    Z = ((1.0f - x - y) / y) * Y;
+  }
+
+  //XYZ to sRGB conversion using the RGB D65 conversion matrix
+  float r_linear = X *  3.2406255f + Y * -1.537208f  + Z * -0.4986286f;
+  float g_linear = X * -0.9689307f + Y *  1.8757561f + Z *  0.0415175f;
+  float b_linear = X *  0.0557101f + Y * -0.2040211f + Z *  1.0569959f;
+
+  // Apply gamma correction
+  float r_corrected = r_linear <= 0.0031308f ? 12.92f * r_linear : (1.0f + 0.055f) * powf(r_linear, (1.0f / 2.4f)) - 0.055f;
+  float g_corrected = g_linear <= 0.0031308f ? 12.92f * g_linear : (1.0f + 0.055f) * powf(g_linear, (1.0f / 2.4f)) - 0.055f;
+  float b_corrected = b_linear <= 0.0031308f ? 12.92f * b_linear : (1.0f + 0.055f) * powf(b_linear, (1.0f / 2.4f)) - 0.055f;
+
+  //clamp to 0.0f - 1.0f and convert to 0-255 range
+  rgb[0] = std::max(0.0f, std::min(1.0f, r_corrected)) * 255.0f;
+  rgb[1] = std::max(0.0f, std::min(1.0f, g_corrected)) * 255.0f;
+  rgb[2] = std::max(0.0f, std::min(1.0f, b_corrected)) * 255.0f;
 }
 
 #ifndef WLED_DISABLE_HUESYNC

@@ -170,7 +170,7 @@ void WLED::loop()
 
     uint32_t heap = ESP.getFreeHeap();
     if (heap < MIN_HEAP_SIZE && lastHeap < MIN_HEAP_SIZE) {
-      DEBUG_PRINTF_P(PSTR("Heap too low! %u\n"), heap);      
+      DEBUG_PRINTF_P(PSTR("Heap too low! %u\n"), heap);
       strip.resetSegments(); // remove all but one segments from memory
       if (!Update.isRunning()) forceReconnect = true;
     } else if (heap < MIN_HEAP_SIZE) {
@@ -515,6 +515,10 @@ void WLED::setup()
   initDMX();
 #endif
 
+#ifdef WLED_ENABLE_CLNP
+  clnpInput.init(CLNP_NUM_2, clnpInputReceivePin, clnpInputTransmitPin, clnpInputEnablePin, clnpInputDefaultBaud);
+#endif
+
 #ifdef WLED_ENABLE_ADALIGHT
   if (serialCanRX && Serial.available() > 0 && Serial.peek() == 'I') handleImprovPacket();
 #endif
@@ -688,7 +692,7 @@ bool WLED::initEthernet()
   /*
   For LAN8720 the most correct way is to perform clean reset each time before init
   applying LOW to power or nRST pin for at least 100 us (please refer to datasheet, page 59)
-  ESP_IDF > V4 implements it (150 us, lan87xx_reset_hw(esp_eth_phy_t *phy) function in 
+  ESP_IDF > V4 implements it (150 us, lan87xx_reset_hw(esp_eth_phy_t *phy) function in
   /components/esp_eth/src/esp_eth_phy_lan87xx.c, line 280)
   but ESP_IDF < V4 does not. Lets do it:
   [not always needed, might be relevant in some EMI situations at startup and for hot resets]
@@ -826,7 +830,7 @@ void WLED::initConnection()
 
   if (WLED_WIFI_CONFIGURED) {
     showWelcomePage = false;
-    
+
     DEBUG_PRINTF_P(PSTR("Connecting to %s...\n"), multiWiFi[selectedWiFi].clientSSID);
 
     WiFi.begin(multiWiFi[selectedWiFi].clientSSID, multiWiFi[selectedWiFi].clientPass); // no harm if called multiple times
