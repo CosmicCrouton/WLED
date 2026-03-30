@@ -6,10 +6,10 @@ on:
       - '*'
 
 jobs:
-  
+
   wled_build:
     uses: ./.github/workflows/build.yml
-    
+
   release:
     name: Create Release
     runs-on: ubuntu-latest
@@ -22,9 +22,9 @@ jobs:
       id: changelog
       uses: janheinrichmerker/action-github-changelog-generator@v2.3
       with:
-          token: ${{ secrets.GITHUB_TOKEN }} 
-          sinceTag: v0.15.0
-          releaseBranch: 0_15_x 
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sinceTag: v0.1.6-beta
+          releaseBranch: feature/clnp_v15
     - name: Create draft release
       uses: softprops/action-gh-release@v1
       with:
