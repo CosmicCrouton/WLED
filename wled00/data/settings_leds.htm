@@ -29,8 +29,8 @@
 			const delay_ms = document.getElementById('delay_ms_' + index).value
 
 			var command = JSON.stringify({
-				"rstchannel": index,
-				"delay_ms": delay_ms
+				"rstchannel": Number(index),
+				"delay_ms": Number(delay_ms)
 			});
 
 			fetch(getURL('/json/si'), {
