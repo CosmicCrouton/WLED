@@ -212,7 +212,7 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       char ld[4] = "LD"; ld[2] = offset+s; ld[3] = 0; //driver type (RMT=0, I2S=1)
       char hs[4] = "HS"; hs[2] = offset+s; hs[3] = 0; //hostname (for network types, custom text for others)
       if (!request->hasArg(lp)) {
-        DEBUG_PRINTF_P(PSTR("# of buses: %d\n"), s+1);
+        DEBUG_PRINTF_P(PSTR("# of buses: %d\n"), s);
         break;
       }
       for (int i = 0; i < 5; i++) {
@@ -587,29 +587,46 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       ii++;
     }
 
-    char k[3]; k[2] = 0;
-    for (int i = 0; i<10; i++) {
-      k[1] = i+48;//ascii 0,1,2,3,...
-      k[0] = 'H'; //timer hours
-      timerHours[i] = request->arg(k).toInt();
-      k[0] = 'N'; //minutes
-      timerMinutes[i] = request->arg(k).toInt();
-      k[0] = 'T'; //macros
-      timerMacro[i] = request->arg(k).toInt();
-      k[0] = 'W'; //weekdays
-      timerWeekday[i] = request->arg(k).toInt();
-      if (i<8) {
-        k[0] = 'M'; //start month
-        timerMonth[i] = request->arg(k).toInt() & 0x0F;
-        timerMonth[i] <<= 4;
-        k[0] = 'P'; //end month
-        timerMonth[i] += (request->arg(k).toInt() & 0x0F);
-        k[0] = 'D'; //start day
-        timerDay[i] = request->arg(k).toInt();
-        k[0] = 'E'; //end day
-        timerDayEnd[i] = request->arg(k).toInt();
+    clearTimers();
+    char k[5]; k[4] = 0;
+    for (int ti = 0; ti < (int)WLED_MAX_TIMERS; ti++) {
+      if (ti < 10) {
+        k[1] = ti + 48;
+        k[2] = 0;
+      } else {
+        k[1] = '0' + (ti / 10);
+        k[2] = '0' + (ti % 10);
+        k[3] = 0;
       }
+      k[0] = 'T';
+      if (!request->hasArg(k)) continue;
+      uint8_t p = request->arg(k).toInt();
+      k[0] = 'H';
+      uint8_t h = request->arg(k).toInt();
+      k[0] = 'N';
+      int minuteVal = request->arg(k).toInt();
+      if (minuteVal < -120) minuteVal = -120;
+      if (minuteVal > 120) minuteVal = 120;
+      int8_t m = (int8_t)minuteVal;
+      k[0] = 'W';
+      uint8_t wd = request->arg(k).toInt();
+      uint8_t ms = 1, me = 12, ds = 1, de = 31;
+      k[0] = 'M';
+      ms = request->arg(k).toInt();
+      if (ms == 0) ms = 1;
+      k[0] = 'P';
+      me = request->arg(k).toInt();
+      if (me == 0) me = 12;
+      k[0] = 'D';
+      ds = request->arg(k).toInt();
+      if (ds == 0) ds = 1;
+      k[0] = 'E';
+      de = request->arg(k).toInt();
+      if (de == 0) de = 31;
+      addTimer(p, h, m, wd, ms, me, ds, de);
     }
+    compactTimers();
+
   }
 
   //SECURITY
