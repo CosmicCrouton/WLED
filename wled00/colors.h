@@ -90,7 +90,6 @@ struct CHSV32 { // 32bit HSV color with 16bit hue for more accurate conversions
   inline operator CHSV() const { return CHSV((uint8_t)(h >> 8), s, v); } // typecast to CHSV
 };
 
-void colorXYtosRGB(float x, float y, byte* rgb);
 void hsv2rgb(const CHSV32& hsv, uint32_t& rgb); // convert HSV (16bit hue) to RGB (32bit with white = 0)
 void rgb2hsv(const uint32_t rgb, CHSV32& hsv); // convert RGB to HSV (16bit hue), much more accurate and faster than fastled version
 #endif
