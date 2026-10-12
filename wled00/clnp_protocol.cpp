@@ -642,7 +642,7 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
             intensity = static_cast<uint16_t>((data[6] << 8) | data[7]);  //intensity (Y)
 
             //convert from CIE 1931 xyY to sRGB
-            colorXYtosRGB(x, y, rgb);
+            clnp_protocol::colorXYtosRGB(x, y, rgb);
 
             clnp_device::wled_set_color_fade(fadeCounts, intensity, rgb[0], rgb[1], rgb[2]);
             break;
@@ -758,4 +758,50 @@ void clnp_device::wled_set_onoff(uint16_t fadeCounts, bool isOn)
 
         stateChanged = true;
     }
+}
+
+//Converts CIE 1931 xyY to sRGB
+//https://en.wikipedia.org/wiki/SRGB#cite_note-IEC2003-11
+void clnp_protocol::colorXYtosRGB(float x, float y, byte* rgb)
+{
+    if (!std::isfinite(x) || !std::isfinite(y) || x < 0.0f || y <= 0.0f || x + y > 1.0f) {
+        rgb[0] = rgb[1] = rgb[2] = 0;
+        return;
+    }
+
+    const float Y = 1.0f;
+    const float X = (x / y) * Y;
+    const float Z = ((1.0f - x - y) / y) * Y;
+
+    //XYZ to sRGB conversion using the RGB D65 conversion matrix
+    float r_linear = X *  3.2406255f + Y * -1.537208f  + Z * -0.4986286f;
+    float g_linear = X * -0.9689307f + Y *  1.8757561f + Z *  0.0415175f;
+    float b_linear = X *  0.0557101f + Y * -0.2040211f + Z *  1.0569959f;
+
+    const float maxLinear = std::max(r_linear, std::max(g_linear, b_linear));
+    if (maxLinear <= 0.0f)
+    {
+        rgb[0] = rgb[1] = rgb[2] = 0;
+        return;
+    }
+
+    if (maxLinear > 1.0f) {
+        r_linear /= maxLinear;
+        g_linear /= maxLinear;
+        b_linear /= maxLinear;
+    }
+
+    // Out-of-gamut chromaticities can produce negative linear channels.
+    r_linear = std::max(0.0f, std::min(1.0f, r_linear));
+    g_linear = std::max(0.0f, std::min(1.0f, g_linear));
+    b_linear = std::max(0.0f, std::min(1.0f, b_linear));
+
+    // Apply the sRGB transfer curve and convert to 8-bit channels.
+    const float r_corrected = r_linear <= 0.0031308f ? 12.92f * r_linear : 1.055f * powf(r_linear, 1.0f / 2.4f) - 0.055f;
+    const float g_corrected = g_linear <= 0.0031308f ? 12.92f * g_linear : 1.055f * powf(g_linear, 1.0f / 2.4f) - 0.055f;
+    const float b_corrected = b_linear <= 0.0031308f ? 12.92f * b_linear : 1.055f * powf(b_linear, 1.0f / 2.4f) - 0.055f;
+
+    rgb[0] = lroundf(r_corrected * 255.0f);
+    rgb[1] = lroundf(g_corrected * 255.0f);
+    rgb[2] = lroundf(b_corrected * 255.0f);
 }

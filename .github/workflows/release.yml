@@ -36,7 +36,7 @@ jobs:
       uses: janheinrichmerker/action-github-changelog-generator@v2.4
       with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          sinceTag: v0.1.3-beta
+          sinceTag: v0.15.5-clnp
           maxIssues: 500
           # Exclude issues that were closed without resolution from changelog
           excludeLabels: 'stale,wontfix,duplicate,invalid,external,question,use-as-is,not_planned'

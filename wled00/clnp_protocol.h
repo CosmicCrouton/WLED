@@ -184,6 +184,8 @@ class clnp_protocol {
         static size_t get_addr_size(CLNPDestinationType destType);
 
         static esp_err_t setup(uint16_t &tx_delay_ms);
+
+        static void colorXYtosRGB(float x, float y, byte* rgb);
 };
 
 
