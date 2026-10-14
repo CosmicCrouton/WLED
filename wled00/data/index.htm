@@ -58,12 +58,6 @@
 				<div class="sliderdisplay" style="background: linear-gradient(90deg, #aaa 0%, #f00)"></div>
 			</div>
 		</div>
-		<div id="vwrap" class="slider">
-			<div title="Value/Brightness" class="sliderwrap il">
-				<input id="sliderV" class="noslide" oninput="fromV()" onchange="setColor(0)" max="100" min="0" type="range" value="100" step="any" />
-				<div class="sliderdisplay"></div>
-			</div>
-		</div>
 		<div id="kwrap" class="slider">
 			<div title="Kelvin/Temperature" class="sliderwrap il">
 				<input id="sliderK" class="noslide" oninput="fromK()" onchange="setColor(0)" max="10091" min="1900" type="range" value="6550" />
@@ -377,7 +371,7 @@
 
 <i id="roverstar" class="icons huge" onclick="setLor(0)">&#xe410;</i><br>
 
-<!-- 
+<!--
 	If you want to load iro.js and rangetouch.js as consecutive requests, you can do it like it was done in 0.14.0:
 	https://github.com/wled/WLED/blob/v0.14.0/wled00/data/index.htm
 	A more compact approach is implemented to load iro.js at the beginning of index.js.

@@ -185,6 +185,7 @@ class clnp_protocol {
 
         static esp_err_t setup(uint16_t &tx_delay_ms);
 
+        static uint32_t normalize_color(uint32_t color, uint16_t intensity);
         static void colorXYtosRGB(float x, float y, byte* rgb);
 };
 

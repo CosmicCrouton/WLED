@@ -660,15 +660,17 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
 void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uint16_t kelvin)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
-    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);     //Scale intensity to 8 bits
+    uint8_t new_intensity = static_cast<uint8_t>(intensity >> 8);     //Scale intensity to 8 bits
     uint8_t cct_scaled = (kelvin - 3500) * (UINT8_MAX - 0) / (5000 - 3500) + 0; //Scale kelvin to 8 bits (assuming a range of 3500K to 5000K)
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
     CRGBW rgb_adjusted(seg.colors[0]);
-    rgb_adjusted.w = intensity_scaled;
+    rgb_adjusted.w = new_intensity;
 
-    if (seg.mode != 0 || seg.colors[0] != rgb_adjusted || seg.cct != cct_scaled)
+    if (seg.mode != 0
+        || seg.colors[0] != rgb_adjusted
+        || seg.cct != cct_scaled)
     {
         seg.setMode(0);
         strip.setTransition(0);
@@ -684,28 +686,38 @@ void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uin
 void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
-    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);     //Scale intensity to 8 bits
-    CRGBW color = CRGBW(r, g, b, 0);
+    uint8_t new_intensity = static_cast<uint8_t>(intensity >> 8); //Scale intensity to 8 bits
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    CHSV32 hsv;
-    CRGBW rgb_adjusted(seg.colors[0]);
-    uint8_t w = rgb_adjusted.w; //Set color command should not change white level
+    CRGBW new_color(seg.colors[0]);
+    new_color.r = r;
+    new_color.g = g;
+    new_color.b = b;
 
-    //Convert to HSV to more easily adjust the intensity
-    rgb2hsv(color, hsv);
-    hsv.v = intensity_scaled;
-    hsv2rgb(hsv, rgb_adjusted.color32);
-    rgb_adjusted.w = w; //Restore original white level
+    //Hack since setting WLED segment intensity to 0
+    //  causes it to jump to 255 for some reason...
+    if (new_intensity == 0)
+    {
+        new_color.r = new_color.g = new_color.b = 0;
+        new_intensity = 1;
+    }
 
-    if (seg.mode != 0 || seg.colors[0] != rgb_adjusted.color32)
+    if (seg.mode != 0
+        || seg.colors[0] != new_color.color32
+        || seg.opacity != new_intensity)
     {
         seg.setMode(0);
         strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
-        seg.options |=   0x01 << SEG_OPTION_ON;
-        seg.colors[0] = rgb_adjusted.color32;
+        seg.colors[0] = new_color.color32;
+        seg.opacity = new_intensity;
+
+        if (new_intensity > 1)
+            seg.options |=   0x01 << SEG_OPTION_ON;
+        else
+            seg.options &= ~(0x01 << SEG_OPTION_ON);
+
 
         stateChanged = true;
     }
@@ -714,27 +726,29 @@ void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, u
 void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensity)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
-    uint8_t intensity_scaled = static_cast<uint8_t>(intensity >> 8);    //Scale intensity to 8 bits
+    uint8_t new_intensity = static_cast<uint8_t>(intensity >> 8); //Scale intensity to 8 bits
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    CHSV32 hsv;
-    CRGBW rgb_adjusted(seg.colors[0]);
-    uint8_t w = rgb_adjusted.w; //Set intensity command should not change white level
+    //Hack since setting WLED segment intensity to 0
+    //  causes it to jump to 255 for some reason...
+    if (new_intensity == 0)
+        new_intensity = 1;
 
-    //Convert to HSV to more easily adjust the intensity
-    rgb2hsv(seg.colors[0], hsv);
-    hsv.v = intensity_scaled;
-    hsv2rgb(hsv, rgb_adjusted.color32);
-    rgb_adjusted.w = w; //Restore original white level
-
-    if (seg.mode != 0 || seg.colors[0] != rgb_adjusted.color32)
+    if (seg.mode != 0
+        || seg.opacity != new_intensity)
     {
         seg.setMode(0);
         strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
-        seg.options |=   0x01 << SEG_OPTION_ON;
-        seg.colors[0] = rgb_adjusted.color32;
+
+        seg.opacity = new_intensity;
+
+        if (new_intensity > 1)
+            seg.options |=   0x01 << SEG_OPTION_ON;
+        else
+            seg.options &= ~(0x01 << SEG_OPTION_ON);
+
 
         stateChanged = true;
     }
@@ -760,6 +774,26 @@ void clnp_device::wled_set_onoff(uint16_t fadeCounts, bool isOn)
     }
 }
 
+uint32_t clnp_protocol::normalize_color(uint32_t color, uint16_t intensity)
+{
+    CRGBW current_color(color);
+
+    uint8_t currentMax = std::max(current_color.r, current_color.g);
+    currentMax = std::max(currentMax, current_color.b);
+    currentMax = std::max(currentMax, current_color.w);
+
+    if (currentMax > 0) {
+        const float targetMax = static_cast<float>(intensity) * UINT8_MAX / UINT16_MAX;
+        const float scale = targetMax / currentMax;
+        current_color.r = static_cast<uint8_t>(lroundf(current_color.r * scale));
+        current_color.g = static_cast<uint8_t>(lroundf(current_color.g * scale));
+        current_color.b = static_cast<uint8_t>(lroundf(current_color.b * scale));
+        current_color.w = static_cast<uint8_t>(lroundf(current_color.w * scale));
+    }
+
+    return current_color.color32;
+}
+
 //Converts CIE 1931 xyY to sRGB
 //https://en.wikipedia.org/wiki/SRGB#cite_note-IEC2003-11
 void clnp_protocol::colorXYtosRGB(float x, float y, byte* rgb)
@@ -767,6 +801,28 @@ void clnp_protocol::colorXYtosRGB(float x, float y, byte* rgb)
     if (!std::isfinite(x) || !std::isfinite(y) || x < 0.0f || y <= 0.0f || x + y > 1.0f) {
         rgb[0] = rgb[1] = rgb[2] = 0;
         return;
+    }
+
+    // Snap nearby coordinates to standard sRGB primaries for easier selection.
+    constexpr float primarySnapToleranceSquared = 0.05f * 0.05f;
+    auto isWithinPrimaryTolerance = [&](float primaryX, float primaryY) {
+        const float dx = x - primaryX;
+        const float dy = y - primaryY;
+        return dx * dx + dy * dy <= primarySnapToleranceSquared;
+    };
+
+    //Red
+    if (isWithinPrimaryTolerance(0.700, 0.267f)) {
+        x = 0.640f;
+        y = 0.330f;
+    //Green
+    } else if (isWithinPrimaryTolerance(0.235, 0.678f)) {
+        x = 0.300f;
+        y = 0.600f;
+    //Blue
+    } else if (isWithinPrimaryTolerance(0.14, 0.058f)) {
+        x = 0.150f;
+        y = 0.060f;
     }
 
     const float Y = 1.0f;
