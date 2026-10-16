@@ -659,6 +659,13 @@ bool clnp_device::process_common_light_control_message(uint8_t src_addr, const u
 //FX_fcn.cpp, Segment &Segment::setCCT(uint16_t k)
 void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uint16_t kelvin)
 {
+    //Clamp kelvin to the range of 3500K to 5000K
+    if (kelvin < 3500) {
+        kelvin = 3500;
+    } else if (kelvin > 5000) {
+        kelvin = 5000;
+    }
+
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
     uint8_t new_intensity = static_cast<uint8_t>(intensity >> 8);     //Scale intensity to 8 bits
     uint8_t cct_scaled = (kelvin - 3500) * (UINT8_MAX - 0) / (5000 - 3500) + 0; //Scale kelvin to 8 bits (assuming a range of 3500K to 5000K)
@@ -675,7 +682,6 @@ void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uin
         seg.setMode(0);
         strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
-        seg.options |=   0x01 << SEG_OPTION_ON;
         seg.colors[0] = rgb_adjusted;
         seg.cct = cct_scaled;
 
@@ -686,38 +692,28 @@ void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uin
 void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, uint8_t r, uint8_t g, uint8_t b)
 {
     uint16_t fade_duration = static_cast<uint16_t>(this->fade_step_duration_ms) * fadeCounts;
-    uint8_t new_intensity = static_cast<uint8_t>(intensity >> 8); //Scale intensity to 8 bits
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    CRGBW new_color(seg.colors[0]);
-    new_color.r = r;
-    new_color.g = g;
-    new_color.b = b;
+    CRGBW rgb_adjusted(seg.colors[0]);
+    uint8_t maxRGB = std::max(r, std::max(g, b));
+    uint8_t targetMax = static_cast<uint8_t>((static_cast<uint32_t>(intensity) * UINT8_MAX + UINT16_MAX / 2) / UINT16_MAX);
 
-    //Hack since setting WLED segment intensity to 0
-    //  causes it to jump to 255 for some reason...
-    if (new_intensity == 0)
-    {
-        new_color.r = new_color.g = new_color.b = 0;
-        new_intensity = 1;
+    if (maxRGB == 0) {
+        rgb_adjusted.r = rgb_adjusted.g = rgb_adjusted.b = 0;
+    } else {
+        rgb_adjusted.r = (static_cast<uint16_t>(r) * targetMax + maxRGB / 2) / maxRGB;
+        rgb_adjusted.g = (static_cast<uint16_t>(g) * targetMax + maxRGB / 2) / maxRGB;
+        rgb_adjusted.b = (static_cast<uint16_t>(b) * targetMax + maxRGB / 2) / maxRGB;
     }
 
     if (seg.mode != 0
-        || seg.colors[0] != new_color.color32
-        || seg.opacity != new_intensity)
+        || seg.colors[0] != rgb_adjusted.color32)
     {
         seg.setMode(0);
         strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
-        seg.colors[0] = new_color.color32;
-        seg.opacity = new_intensity;
-
-        if (new_intensity > 1)
-            seg.options |=   0x01 << SEG_OPTION_ON;
-        else
-            seg.options &= ~(0x01 << SEG_OPTION_ON);
-
+        seg.colors[0] = rgb_adjusted.color32;
 
         stateChanged = true;
     }
@@ -730,11 +726,6 @@ void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensit
 
     Segment &seg = strip.getSegment(this->wled_segment_index);
 
-    //Hack since setting WLED segment intensity to 0
-    //  causes it to jump to 255 for some reason...
-    if (new_intensity == 0)
-        new_intensity = 1;
-
     if (seg.mode != 0
         || seg.opacity != new_intensity)
     {
@@ -742,13 +733,17 @@ void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensit
         strip.setTransition(0);
         seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
 
-        seg.opacity = new_intensity;
-
-        if (new_intensity > 1)
+        //WLED uses opacity==0 in its json api to represent an 'off' command.
+        //  so don't set opacity to 0, instead just turn the segment off.
+        if (new_intensity > 0)
+        {
+            seg.opacity = new_intensity;
             seg.options |=   0x01 << SEG_OPTION_ON;
+        }
         else
+        {
             seg.options &= ~(0x01 << SEG_OPTION_ON);
-
+        }
 
         stateChanged = true;
     }
@@ -772,26 +767,6 @@ void clnp_device::wled_set_onoff(uint16_t fadeCounts, bool isOn)
 
         stateChanged = true;
     }
-}
-
-uint32_t clnp_protocol::normalize_color(uint32_t color, uint16_t intensity)
-{
-    CRGBW current_color(color);
-
-    uint8_t currentMax = std::max(current_color.r, current_color.g);
-    currentMax = std::max(currentMax, current_color.b);
-    currentMax = std::max(currentMax, current_color.w);
-
-    if (currentMax > 0) {
-        const float targetMax = static_cast<float>(intensity) * UINT8_MAX / UINT16_MAX;
-        const float scale = targetMax / currentMax;
-        current_color.r = static_cast<uint8_t>(lroundf(current_color.r * scale));
-        current_color.g = static_cast<uint8_t>(lroundf(current_color.g * scale));
-        current_color.b = static_cast<uint8_t>(lroundf(current_color.b * scale));
-        current_color.w = static_cast<uint8_t>(lroundf(current_color.w * scale));
-    }
-
-    return current_color.color32;
 }
 
 //Converts CIE 1931 xyY to sRGB

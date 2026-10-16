@@ -58,6 +58,12 @@
 				<div class="sliderdisplay" style="background: linear-gradient(90deg, #aaa 0%, #f00)"></div>
 			</div>
 		</div>
+		<div id="vwrap" class="slider">
+			<div title="Value/Brightness" class="sliderwrap il">
+				<input id="sliderV" class="noslide" oninput="fromV()" onchange="setColor(0)" max="100" min="0" type="range" value="100" step="any" />
+				<div class="sliderdisplay"></div>
+			</div>
+		</div>
 		<div id="kwrap" class="slider">
 			<div title="Kelvin/Temperature" class="sliderwrap il">
 				<input id="sliderK" class="noslide" oninput="fromK()" onchange="setColor(0)" max="10091" min="1900" type="range" value="6550" />

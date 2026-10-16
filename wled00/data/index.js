@@ -1315,7 +1315,7 @@ function updateUI()
 	gId('picker').style.display  = (hasRGB && ccfg.picker) ? "block":"none";  // color picker wheel
 	gId('hwrap').style.display   = (hasRGB && !ccfg.picker) ? "block":"none"; // hue slider
 	gId('swrap').style.display   = (hasRGB && !ccfg.picker) ? "block":"none"; // saturation slider
-	//gId('vwrap').style.display   = (hasRGB) ? "block":"none";                 // brightness (value) slider
+	gId('vwrap').style.display   = (hasRGB) ? "block":"none";                 // brightness (value) slider
 	gId('kwrap').style.display   = (hasRGB && !hasCCT) ? "block":"none";      // Kelvin slider
 	gId('rgbwrap').style.display = (hasRGB && ccfg.rgb) ? "block":"none";     // RGB sliders
 	gId('qcs-w').style.display   = (hasRGB && ccfg.quick) ? "block":"none";   // quick selection
@@ -2679,11 +2679,13 @@ function updatePSliders() {
 
 	gId("sliderH").value = h;
 	gId("sliderS").value = s;
+	gId("sliderV").value = v;
 
 	c = iro.Color.hsvToRgb({"h":h,"s":100,"v":100});
 	gId("sliderS").nextElementSibling.style.backgroundImage = 'linear-gradient(90deg, #aaa -15%, rgb('+c.r+','+c.g+','+c.b+'))';
 
 	c = iro.Color.hsvToRgb({"h":h,"s":s,"v":100});
+	gId('sliderV').nextElementSibling.style.backgroundImage = 'linear-gradient(90deg, #000 -15%, rgb('+c.r+','+c.g+','+c.b+'))';
 
 	// update Kelvin slider
 	gId('sliderK').value = cpick.color.kelvin;
@@ -2732,7 +2734,7 @@ function fromS()
 
 function fromV()
 {
-//	cpick.color.setChannel('hsv', 'v', gId('sliderV').value);
+	cpick.color.setChannel('hsv', 'v', gId('sliderV').value);
 }
 
 function fromK()
