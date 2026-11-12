@@ -683,7 +683,7 @@ void clnp_device::wled_set_cct_fade(uint16_t fadeCounts, uint16_t intensity, uin
     {
         seg.setMode(0);
         strip.setTransition(0);
-        seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
+        seg.startTransition(fade_duration); // start transition prior to change
         seg.colors[0] = rgb_adjusted;
         seg.cct = cct_scaled;
 
@@ -714,7 +714,7 @@ void clnp_device::wled_set_color_fade(uint16_t fadeCounts, uint16_t intensity, u
     {
         seg.setMode(0);
         strip.setTransition(0);
-        seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
+        seg.startTransition(fade_duration); // start transition prior to change
         seg.colors[0] = rgb_adjusted.color32;
 
         stateChanged = true;
@@ -733,7 +733,7 @@ void clnp_device::wled_set_intensity_fade(uint16_t fadeCounts, uint16_t intensit
     {
         seg.setMode(0);
         strip.setTransition(0);
-        seg.startTransition(fade_duration, blendingStyle != TRANSITION_FADE); // start transition prior to change
+        seg.startTransition(fade_duration); // start transition prior to change
 
         //WLED uses opacity==0 in its json api to represent an 'off' command.
         //  so don't set opacity to 0, instead just turn the segment off.
